@@ -20,6 +20,7 @@ contract OracleSwapTest is Test, Deployers {
     OracleSwap public hook;
     address public owner;
     address public alice = address(0xa0a);
+    address public bob = address(0xb0b);
 
     function setUp() public {
         owner = address(this);
@@ -175,7 +176,7 @@ contract OracleSwapTest is Test, Deployers {
         assertEq(balanceOfTokenBBefore - balanceOfTokenBAfter, 100e18, "Wrong tokenB balance");
     }
 
-    function test_addLiquidity_token0_process_all_tasks() public {
+    function test_process_one_zeroForOneSwap() public {
         PoolSwapTest.TestSettings memory settings = PoolSwapTest.TestSettings({
             takeClaims: false,
             settleUsingBurn: false
@@ -215,7 +216,7 @@ contract OracleSwapTest is Test, Deployers {
         assertEq(currency1.balanceOf(alice), amount);
     }
 
-    function test_addLiquidity_token1_process_all_tasks() public {
+    function test_process_one_oneForZeroSwap() public {
         PoolSwapTest.TestSettings memory settings = PoolSwapTest.TestSettings({
             takeClaims: false,
             settleUsingBurn: false
@@ -250,6 +251,116 @@ contract OracleSwapTest is Test, Deployers {
         assertEq(currency0.balanceOf(alice), amount);
     }
 
+    function test_process_two_zeroForOneSwap_price1_5() public {
+        uint256 price = 1.5e8;
+        uint256 amount = 1000e18;
+        _queue({ receiver: alice, amount: amount, zeroForOne: true });
+        _queue({ receiver: bob, amount: amount, zeroForOne: true });
+
+        IERC20Minimal(Currency.unwrap(currency1)).approve(address(hook), type(uint256).max);
+        // add currency1 to resolve zeroForOne swaps
+        vm.expectEmit(true, true, false, true, Currency.unwrap(currency1));
+        emit IERC20Minimal.Transfer(address(hook.poolManager()), alice, 1500e18);
+        emit IERC20Minimal.Transfer(address(hook.poolManager()), bob, 1500e18);
+        hook.process({
+            key: key,
+            amount: amount * 2 * price / 1e8,
+            price: price,
+            isZero: false
+        });
+    }
+
+    function test_process_two_zeroForOneSwap_price1_and_two_swaps_price3() public {
+        uint256 price = 1e8;
+        uint256 amount = 1000e18;
+        _queue({ receiver: alice, amount: amount, zeroForOne: true });
+        _queue({ receiver: bob, amount: amount, zeroForOne: true });
+
+        IERC20Minimal(Currency.unwrap(currency1)).approve(address(hook), type(uint256).max);
+
+        // add currency1 to resolve zeroForOne swaps
+        vm.expectEmit(true, true, false, true, Currency.unwrap(currency1));
+        emit IERC20Minimal.Transfer(address(hook.poolManager()), alice, 1000e18);
+        emit IERC20Minimal.Transfer(address(hook.poolManager()), bob, 1000e18);
+        hook.process({
+            key: key,
+            amount: amount * 2 * price / 1e8,
+            price: price,
+            isZero: false
+        });
+
+        _queue({ receiver: alice, amount: amount, zeroForOne: true });
+        _queue({ receiver: bob, amount: amount, zeroForOne: true });
+
+        // add currency1 to resolve zeroForOne swaps
+        price = 3e8;
+        vm.expectEmit(true, true, false, true, Currency.unwrap(currency1));
+        emit IERC20Minimal.Transfer(address(hook.poolManager()), alice, 3000e18);
+        emit IERC20Minimal.Transfer(address(hook.poolManager()), bob, 3000e18);
+        hook.process({
+            key: key,
+            amount: amount * 2 * price / 1e8,
+            price: price,
+            isZero: false
+        });
+    }
+
+    // when currency0/currency1 price is 2
+    function test_process_two_oneForZeroSwap_price0_5() public {
+        uint256 price = 0.5e8;
+        address[] memory receivers = new address[](2);
+        receivers[0] = alice;
+        receivers[1] = bob;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 1000e18;
+        amounts[1] = 2000e18;
+        for (uint256 i = 0; i < receivers.length; ++i) {
+            _queue({ receiver: receivers[i], amount: amounts[i], zeroForOne: false });
+        }
+        console.log("---swap end---");
+
+        IERC20Minimal(Currency.unwrap(currency0)).approve(address(hook), type(uint256).max);
+        // add currency1 to resolve zeroForOne swaps
+        vm.expectEmit(true, true, false, true, Currency.unwrap(currency0));
+        emit IERC20Minimal.Transfer(address(hook.poolManager()), receivers[0], amounts[0] * 2);
+        emit IERC20Minimal.Transfer(address(hook.poolManager()), receivers[1], amounts[1] * 2);
+        hook.process({
+            key: key,
+            amount: 6000e18,
+            price: price,
+            isZero: true
+        });
+    }
+
+    // queue one swap
+    function _queue(address receiver, uint256 amount, bool zeroForOne) internal {
+        PoolSwapTest.TestSettings memory settings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
+        Currency currency = zeroForOne ? currency0 : currency1;
+        currency.transfer(receiver, amount); // the test contract has all minted tokens at first
+
+        vm.startPrank(receiver);
+        IERC20Minimal(Currency.unwrap(currency)).approve(address(swapRouter), amount);
+        swapRouter.swap(
+            key,
+            IPoolManager.SwapParams({
+                zeroForOne: zeroForOne,
+                amountSpecified: -int256(amount), // exact input
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1 // does not matter
+            }),
+            settings,
+            abi.encode(IOracleSwap.HookData({ receiver: receiver }))
+        );
+        vm.stopPrank();
+    }
+
+    function _sum(uint256[] memory amounts) internal pure returns (uint256 sum) {
+        for (uint256 i = 0; i < amounts.length; ++i) {
+            sum += amounts[i];
+        }
+    }
     /*
     function test_swap_exactInput_zeroForOne() public {
         PoolSwapTest.TestSettings memory settings = PoolSwapTest.TestSettings({

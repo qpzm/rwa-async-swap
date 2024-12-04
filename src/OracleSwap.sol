@@ -83,7 +83,8 @@ contract OracleSwap is Ownable, BaseHook, IOracleSwap {
         }
 
         // Add to the swap queue
-        swapQueue[params.zeroForOne][zeroForOneEndTaskId] = WithdrawalRequest({
+        uint256 endTaskId = params.zeroForOne ? zeroForOneEndTaskId : oneForZeroEndTaskId;
+        swapQueue[params.zeroForOne][endTaskId] = WithdrawalRequest({
             receiver: hookData.receiver,
             amountSpecified: amountInPositive
         });
@@ -175,7 +176,7 @@ contract OracleSwap is Ownable, BaseHook, IOracleSwap {
             console.log("i: %s, isZero: %s", i, isZero);
             // If isZero is true, oneForZero must be resolved
             WithdrawalRequest memory request = swapQueue[!isZero][i];
-            uint256 amountUnspecified = request.amountSpecified * callbackData.price / 10 ** 8;
+            uint256 amountUnspecified = _convertPrice(request.amountSpecified, callbackData.price, !isZero);
             console.log("amountSpecified: %s", request.amountSpecified);
             console.log("amountUnSpecified: %s", amountUnspecified);
             console.log("request.receiver: %s", request.receiver);
@@ -194,8 +195,25 @@ contract OracleSwap is Ownable, BaseHook, IOracleSwap {
                     false
                 );
             }
+
+            if (isZero) {
+                oneForZeroStartTaskId++;
+            } else {
+                zeroForOneStartTaskId++;
+            }
         }
 
         return "";
+    }
+
+    /// @param currencyZeroPrice currency0/currency1 price. price is 8 decimal
+    function _convertPrice(uint256 inputAmount, uint256 currencyZeroPrice, bool zeroForOne) internal pure returns (uint256 outputAmount) {
+        if (zeroForOne) {
+            // token1Amount = tokenZeroAmount * currencyZeroPrice / 10 ** 8
+            outputAmount = inputAmount * currencyZeroPrice / (10 ** 8);
+        } else {
+            // token0Amount = token1Amount * 10 ** 8 / currencyZeroPrice
+            outputAmount = inputAmount * (10 ** 8) / currencyZeroPrice;
+        }
     }
 }
