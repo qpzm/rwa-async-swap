@@ -1,39 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
-import {PoolKey} from "v4-core/types/PoolKey.sol";
-import {Currency} from "v4-core/types/Currency.sol";
-import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
-import {Hooks} from "v4-core/libraries/Hooks.sol";
-import {BeforeSwapDelta, toBeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
+import {IOracleSwap} from "./IOracleSwap.sol";
 import {BaseHook} from "v4-periphery/src/base/hooks/BaseHook.sol";
+import {BeforeSwapDelta, toBeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
+import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
+import {Currency} from "v4-core/types/Currency.sol";
+import {Hooks} from "v4-core/libraries/Hooks.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {console} from "forge-std/console.sol";
 
-contract OracleSwap is Ownable, BaseHook {
+contract OracleSwap is Ownable, BaseHook, IOracleSwap {
     using CurrencySettler for Currency;
 
-    error NotOwner();
-    error TwoTokensAdded();
-
-    mapping(bool zeroForOne => mapping(uint256 taskId => uint256 amountSpecified)) public swapQueue;
+    mapping(bool zeroForOne => mapping(uint256 taskId => WithdrawalRequest)) public swapQueue;
     uint256 public zeroForOneStartTaskId;
     uint256 public oneForZeroStartTaskId;
     uint256 public zeroForOneEndTaskId;
     uint256 public oneForZeroEndTaskId;
-
-    error AddLiquidityThroughHook();
-
-    struct CallbackData {
-        uint256 amount;
-        uint256 price; // decimals 8
-        Currency currency0;
-        Currency currency1;
-        bool isZero;
-        address sender;
-    }
-
     constructor(address owner, IPoolManager poolManager) Ownable(owner) BaseHook(poolManager) {}
 
     function getHookPermissions()
@@ -61,7 +47,60 @@ contract OracleSwap is Ownable, BaseHook {
             });
     }
 
+    // Add a swap the given token pair
+    function beforeSwap(
+        address sender,
+        PoolKey calldata key,
+        IPoolManager.SwapParams calldata params,
+        bytes calldata hookData
+    ) external override returns (bytes4, BeforeSwapDelta, uint24) {
+        console.log("sender: %s", sender);
+        HookData memory hookData = abi.decode(hookData, (HookData));
+        require(params.amountSpecified < 0, "must be exact input");
+
+        uint256 amountInPositive = uint256(-params.amountSpecified);
+
+        // async swap
+        // the initial price is 1 to 1
+        BeforeSwapDelta beforeSwapDelta = toBeforeSwapDelta(
+            int128(-params.amountSpecified), 0
+        );
+
+        if (params.zeroForOne) {
+            key.currency0.take(
+                poolManager,
+                address(this),
+                amountInPositive,
+                true // claims
+            );
+        } else {
+            key.currency1.take(
+                poolManager,
+                address(this),
+                amountInPositive,
+                true // claims
+            );
+        }
+
+        // Add to the swap queue
+        swapQueue[params.zeroForOne][zeroForOneEndTaskId] = WithdrawalRequest({
+            receiver: hookData.receiver,
+            amountSpecified: amountInPositive
+        });
+
+        if (params.zeroForOne) {
+            zeroForOneEndTaskId++;
+        } else {
+            oneForZeroEndTaskId++;
+        }
+        console.log("---beforeSwap end---");
+
+        // return 0 delta
+        return (this.beforeSwap.selector, beforeSwapDelta, 0);
+    }
+
     // Disable adding liquidity through the PM
+    // Later both enable sync and async swap
     function beforeAddLiquidity(
         address,
         PoolKey calldata,
@@ -72,7 +111,7 @@ contract OracleSwap is Ownable, BaseHook {
     }
 
     // Custom add liquidity function called by owner
-    function addLiquidity(PoolKey calldata key, uint256 amount, uint256 price, bool isZero) external {
+    function process(PoolKey calldata key, uint256 amount, uint256 price, bool isZero) external {
         poolManager.unlock(
             abi.encode(
                 CallbackData(
@@ -105,7 +144,6 @@ contract OracleSwap is Ownable, BaseHook {
         // if (!callbackData.currency0.isZero() && !callbackData.currency1.isZero()) revert TwoTokensAdded();
 
         // 2. settle the given token to the PM
-        console.log("settle start");
         if (isZero) {
             callbackData.currency0.settle(
                 poolManager,
@@ -117,94 +155,47 @@ contract OracleSwap is Ownable, BaseHook {
             callbackData.currency1.settle(
                 poolManager,
                 callbackData.sender,
-                // FIXME: test
-                // callbackData.amount,
                 callbackData.amount,
                 false // `burn` = `false` i.e. we're actually transferring tokens, not burning ERC-6909 Claim Tokens
             );
         }
-        console.log("settle done");
 
         uint256 startTaskId;
-        // addLiquidity currency0 resolves oneForZero swap tasks
+        uint256 endTaskId;
         if (isZero) {
             startTaskId = oneForZeroStartTaskId;
+            endTaskId   = oneForZeroEndTaskId;
         } else {
             startTaskId = zeroForOneStartTaskId;
+            endTaskId   = zeroForOneEndTaskId;
         }
 
         // 3. Burn the input tokens from the PM
-        for (uint256 i = startTaskId; i < zeroForOneEndTaskId; i++) {
-            console.log("i", i);
+        for (uint256 i = startTaskId; i < endTaskId; i++) {
+            console.log("i: %s, isZero: %s", i, isZero);
             // If isZero is true, oneForZero must be resolved
-            uint256 amountSpecified = swapQueue[!isZero][i];
-            uint256 amountUnspecified = amountSpecified * callbackData.price / 10 ** 8;
-            console.log("amountSpecified: %s", amountSpecified);
+            WithdrawalRequest memory request = swapQueue[!isZero][i];
+            uint256 amountUnspecified = request.amountSpecified * callbackData.price / 10 ** 8;
+            console.log("amountSpecified: %s", request.amountSpecified);
             console.log("amountUnSpecified: %s", amountUnspecified);
+            console.log("request.receiver: %s", request.receiver);
             if (isZero) {
                 callbackData.currency0.take(
                     poolManager,
-                    address(this),
+                    request.receiver,
                     amountUnspecified,
-                    true
+                    false
                 );
             } else {
                 callbackData.currency1.take(
                     poolManager,
-                    // FIXME: save task.recipient
-                    address(this),
+                    request.receiver,
                     amountUnspecified,
-                    true
+                    false
                 );
             }
         }
 
         return "";
-    }
-
-    // Add a swap the given token pair
-    function beforeSwap(
-        address,
-        PoolKey calldata key,
-        IPoolManager.SwapParams calldata params,
-        bytes calldata
-    ) external override returns (bytes4, BeforeSwapDelta, uint24) {
-        require(params.amountSpecified < 0, "must be exact input");
-
-        uint256 amountInPositive = uint256(-params.amountSpecified);
-
-        // async swap
-        // the initial price is 1 to 1
-        BeforeSwapDelta beforeSwapDelta = toBeforeSwapDelta(
-            int128(-params.amountSpecified), 0
-        );
-
-        if (params.zeroForOne) {
-            key.currency0.take(
-                poolManager,
-                address(this),
-                amountInPositive,
-                true // claims
-            );
-        } else {
-            key.currency1.take(
-                poolManager,
-                address(this),
-                amountInPositive,
-                true // claims
-            );
-        }
-
-        // Add to the swap queue
-        swapQueue[params.zeroForOne][zeroForOneEndTaskId] = amountInPositive;
-        if (params.zeroForOne) {
-            zeroForOneEndTaskId++;
-        } else {
-            oneForZeroEndTaskId++;
-        }
-        console.log("---beforeSwap end---");
-
-        // return 0 delta
-        return (this.beforeSwap.selector, beforeSwapDelta, 0);
     }
 }
