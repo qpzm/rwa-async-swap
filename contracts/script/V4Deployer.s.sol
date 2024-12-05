@@ -16,7 +16,7 @@ import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 
 import {HookMiner} from "./HookMiner.sol";
 import {OracleSwap} from "src/OracleSwap.sol";
-import {CSMM} from "src/CSMM.sol";
+import {IPriceOracle} from "src/IPriceOracle.sol";
 import "forge-std/console.sol";
 
 contract V4Deployer is Script {
@@ -54,6 +54,8 @@ contract V4Deployer is Script {
         vm.startBroadcast();
 
         uint256 controllerGasLimit = 0;
+        // TODO: get from deployments
+        IPriceOracle priceOracle = IPriceOracle(address(0x0));
         PoolManager manager = new PoolManager(controllerGasLimit);
         // optimism sepolia
         // PoolManager manager = PoolManager(address(0xE5dF461803a59292c6c03978c17857479c40bc46));
@@ -115,13 +117,13 @@ contract V4Deployer is Script {
             CREATE2_DEPLOYER,
             flags,
             type(OracleSwap).creationCode,
-            abi.encode(broadcaster, manager)
+            abi.encode(broadcaster, manager, priceOracle)
         );
 
         vm.startBroadcast();
 
         console.log("Deploy OracleSwap");
-        OracleSwap oracleSwap = new OracleSwap{salt: salt}(broadcaster, manager);
+        OracleSwap oracleSwap = new OracleSwap{salt: salt}(broadcaster, manager, priceOracle);
         console.log(address(oracleSwap));
         require(address(oracleSwap) == hookAddress, "hook address mismatch");
 

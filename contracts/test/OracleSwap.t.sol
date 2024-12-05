@@ -12,17 +12,21 @@ import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
 import {Deployers} from "@uniswap/v4-core/test/utils/Deployers.sol";
 import {OracleSwap, IOracleSwap} from "../src/OracleSwap.sol";
 import {IERC20Minimal} from "v4-core/interfaces/external/IERC20Minimal.sol";
+import {MockPriceOracle} from "./MockPriceOracle.sol";
 
 contract OracleSwapTest is Test, Deployers {
     using PoolIdLibrary for PoolId;
     using CurrencyLibrary for Currency;
 
     OracleSwap public hook;
+    MockPriceOracle public priceOracle;
+    string public constant tokenName = "KRBOND";
     address public owner;
     address public alice = address(0xa0a);
     address public bob = address(0xb0b);
 
     function setUp() public {
+        vm.warp(1733011200); // 2024-12-01 00:00:00 UTC
         owner = address(this);
         deployFreshManagerAndRouters();
         (currency0, currency1) = deployMintAndApprove2Currencies();
@@ -33,7 +37,9 @@ contract OracleSwapTest is Test, Deployers {
                 Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
             )
         );
-        deployCodeTo("OracleSwap.sol", abi.encode(owner, manager), hookAddress);
+        priceOracle = new MockPriceOracle();
+
+        deployCodeTo("OracleSwap.sol", abi.encode(owner, manager, priceOracle), hookAddress);
         hook = OracleSwap(hookAddress);
 
         (key, ) = initPool(
@@ -176,6 +182,17 @@ contract OracleSwapTest is Test, Deployers {
         assertEq(balanceOfTokenBBefore - balanceOfTokenBAfter, 100e18, "Wrong tokenB balance");
     }
 
+    function test_RevertWhen_process_with_stale_price() public {
+        priceOracle.updatePrice(tokenName, 1e8);
+        vm.warp(block.timestamp + 1 hours + 1 seconds);
+        vm.expectRevert(abi.encodeWithSelector(IOracleSwap.StalePrice.selector));
+        hook.process({
+            key: key,
+            amount: 1000e18,
+            isZero: false
+        });
+    }
+
     function test_process_one_zeroForOneSwap() public {
         PoolSwapTest.TestSettings memory settings = PoolSwapTest.TestSettings({
             takeClaims: false,
@@ -203,13 +220,14 @@ contract OracleSwapTest is Test, Deployers {
 
 
         IERC20Minimal(Currency.unwrap(currency1)).approve(address(hook), amount);
+        priceOracle.updatePrice(tokenName, price);
+
         // add currency1 to resolve zeroForOne swaps
         vm.expectEmit(true, true, false, true, Currency.unwrap(currency1));
         emit IERC20Minimal.Transfer(address(hook.poolManager()), alice, amount);
         hook.process({
             key: key,
             amount: amount,
-            price: price,
             isZero: false
         });
 
@@ -237,6 +255,7 @@ contract OracleSwapTest is Test, Deployers {
         uint256 price = 1e8;
         uint256 amount = 1000e18;
         IERC20Minimal(Currency.unwrap(key.currency0)).approve(address(hook), amount);
+        priceOracle.updatePrice(tokenName, price);
 
         // add currency0 to resolve oneforZero swaps
         vm.expectEmit(true, true, false, true, Currency.unwrap(currency0));
@@ -244,7 +263,6 @@ contract OracleSwapTest is Test, Deployers {
         hook.process({
             key: key,
             amount: amount,
-            price: price,
             isZero: true
         });
 
@@ -258,6 +276,8 @@ contract OracleSwapTest is Test, Deployers {
         _queue({ receiver: bob, amount: amount, zeroForOne: true });
 
         IERC20Minimal(Currency.unwrap(currency1)).approve(address(hook), type(uint256).max);
+        priceOracle.updatePrice(tokenName, price);
+
         // add currency1 to resolve zeroForOne swaps
         vm.expectEmit(true, true, false, true, Currency.unwrap(currency1));
         emit IERC20Minimal.Transfer(address(hook.poolManager()), alice, 1500e18);
@@ -265,7 +285,6 @@ contract OracleSwapTest is Test, Deployers {
         hook.process({
             key: key,
             amount: amount * 2 * price / 1e8,
-            price: price,
             isZero: false
         });
     }
@@ -277,6 +296,7 @@ contract OracleSwapTest is Test, Deployers {
         _queue({ receiver: bob, amount: amount, zeroForOne: true });
 
         IERC20Minimal(Currency.unwrap(currency1)).approve(address(hook), type(uint256).max);
+        priceOracle.updatePrice(tokenName, price);
 
         // add currency1 to resolve zeroForOne swaps
         vm.expectEmit(true, true, false, true, Currency.unwrap(currency1));
@@ -285,7 +305,6 @@ contract OracleSwapTest is Test, Deployers {
         hook.process({
             key: key,
             amount: amount * 2 * price / 1e8,
-            price: price,
             isZero: false
         });
 
@@ -294,13 +313,13 @@ contract OracleSwapTest is Test, Deployers {
 
         // add currency1 to resolve zeroForOne swaps
         price = 3e8;
+        priceOracle.updatePrice(tokenName, price);
         vm.expectEmit(true, true, false, true, Currency.unwrap(currency1));
         emit IERC20Minimal.Transfer(address(hook.poolManager()), alice, 3000e18);
         emit IERC20Minimal.Transfer(address(hook.poolManager()), bob, 3000e18);
         hook.process({
             key: key,
             amount: amount * 2 * price / 1e8,
-            price: price,
             isZero: false
         });
     }
@@ -317,9 +336,9 @@ contract OracleSwapTest is Test, Deployers {
         for (uint256 i = 0; i < receivers.length; ++i) {
             _queue({ receiver: receivers[i], amount: amounts[i], zeroForOne: false });
         }
-        console.log("---swap end---");
 
         IERC20Minimal(Currency.unwrap(currency0)).approve(address(hook), type(uint256).max);
+        priceOracle.updatePrice(tokenName, price);
         // add currency1 to resolve zeroForOne swaps
         vm.expectEmit(true, true, false, true, Currency.unwrap(currency0));
         emit IERC20Minimal.Transfer(address(hook.poolManager()), receivers[0], amounts[0] * 2);
@@ -327,7 +346,6 @@ contract OracleSwapTest is Test, Deployers {
         hook.process({
             key: key,
             amount: 6000e18,
-            price: price,
             isZero: true
         });
     }

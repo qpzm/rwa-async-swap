@@ -7,6 +7,7 @@ interface IOracleSwap {
     error NotOwner();
     error TwoTokensAdded();
     error AddLiquidityThroughHook();
+    error StalePrice();
 
     struct WithdrawalRequest {
         address receiver;

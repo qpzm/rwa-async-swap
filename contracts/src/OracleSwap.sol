@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {IPriceOracle} from "./IPriceOracle.sol";
 import {IOracleSwap} from "./IOracleSwap.sol";
 import {BaseHook} from "v4-periphery/src/base/hooks/BaseHook.sol";
 import {BeforeSwapDelta, toBeforeSwapDelta} from "v4-core/types/BeforeSwapDelta.sol";
@@ -10,7 +11,6 @@ import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
-import {console} from "forge-std/console.sol";
 
 contract OracleSwap is Ownable, BaseHook, IOracleSwap {
     using CurrencySettler for Currency;
@@ -20,7 +20,12 @@ contract OracleSwap is Ownable, BaseHook, IOracleSwap {
     uint256 public oneForZeroStartTaskId;
     uint256 public zeroForOneEndTaskId;
     uint256 public oneForZeroEndTaskId;
-    constructor(address owner, IPoolManager poolManager) Ownable(owner) BaseHook(poolManager) {}
+    IPriceOracle public priceOracle;
+    string constant public tokenName = "KRBOND";
+
+    constructor(address owner, IPoolManager poolManager, IPriceOracle _priceOracle) Ownable(owner) BaseHook(poolManager) {
+        priceOracle = _priceOracle;
+    }
 
     function getHookPermissions()
         public
@@ -54,7 +59,6 @@ contract OracleSwap is Ownable, BaseHook, IOracleSwap {
         IPoolManager.SwapParams calldata params,
         bytes calldata hookData
     ) external override returns (bytes4, BeforeSwapDelta, uint24) {
-        console.log("sender: %s", sender);
         HookData memory hookData = abi.decode(hookData, (HookData));
         require(params.amountSpecified < 0, "must be exact input");
 
@@ -94,7 +98,6 @@ contract OracleSwap is Ownable, BaseHook, IOracleSwap {
         } else {
             oneForZeroEndTaskId++;
         }
-        console.log("---beforeSwap end---");
 
         // return 0 delta
         return (this.beforeSwap.selector, beforeSwapDelta, 0);
@@ -112,12 +115,16 @@ contract OracleSwap is Ownable, BaseHook, IOracleSwap {
     }
 
     // Custom add liquidity function called by owner
-    function process(PoolKey calldata key, uint256 amount, uint256 price, bool isZero) external {
+    function process(PoolKey calldata key, uint256 amount, bool isZero) external {
+        IPriceOracle.TokenPrice memory price = priceOracle.tokenPrices(tokenName);
+
+        require(block.timestamp < price.updatedAt + 1 hours, StalePrice());
+
         poolManager.unlock(
             abi.encode(
                 CallbackData(
                     amount,
-                    price,
+                    price.price,
                     key.currency0,
                     key.currency1,
                     isZero,
@@ -173,13 +180,9 @@ contract OracleSwap is Ownable, BaseHook, IOracleSwap {
 
         // 3. Burn the input tokens from the PM
         for (uint256 i = startTaskId; i < endTaskId; i++) {
-            console.log("i: %s, isZero: %s", i, isZero);
             // If isZero is true, oneForZero must be resolved
             WithdrawalRequest memory request = swapQueue[!isZero][i];
             uint256 amountUnspecified = _convertPrice(request.amountSpecified, callbackData.price, !isZero);
-            console.log("amountSpecified: %s", request.amountSpecified);
-            console.log("amountUnSpecified: %s", amountUnspecified);
-            console.log("request.receiver: %s", request.receiver);
             if (isZero) {
                 callbackData.currency0.take(
                     poolManager,
