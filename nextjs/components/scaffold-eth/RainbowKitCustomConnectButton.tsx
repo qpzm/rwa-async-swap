@@ -182,7 +182,7 @@ export const RainbowKitCustomConnectButton = () => {
                   </Dropdown>
                   <Dropdown backdrop="blur">
                     <DropdownTrigger>
-                      <Button variant="default">
+                      <Button variant="default" className="flex">
                         <BlockieAvatar address={account.address} size={30} ensImage={account.ensAvatar} />
                         <span className="ml-2 mr-1">{account.displayName}</span>
                         <ChevronDownIcon className="h-6 w-4 ml-2 sm:ml-0" />

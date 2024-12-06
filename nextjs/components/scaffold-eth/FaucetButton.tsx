@@ -90,7 +90,12 @@ export const FaucetButton = () => {
   return (
     <Dropdown>
       <DropdownTrigger>
-        <Button variant="ghost" color="warning" disabled={token0.isLoading || token1.isLoading || loading}>
+        <Button
+          variant="ghost"
+          color="warning"
+          disabled={token0.isLoading || token1.isLoading || loading}
+          className="flex"
+        >
           <BanknotesIcon className="h-4 w-4" />
           <span className="ml-2">Faucet</span>
         </Button>
