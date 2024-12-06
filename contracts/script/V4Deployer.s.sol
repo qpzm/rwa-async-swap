@@ -14,7 +14,7 @@ import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
-
+import {IERC20Minimal} from "v4-core/interfaces/external/IERC20Minimal.sol";
 import {HookMiner} from "./HookMiner.sol";
 import {OracleSwap} from "src/OracleSwap.sol";
 import {IPriceOracle} from "src/IPriceOracle.sol";
@@ -45,6 +45,35 @@ contract V4Deployer is Script {
         PRIVATE_KEY = vm.envOr("TESTNET_PRIVATE_KEY", uint256(1));
         broadcaster = vm.rememberKey(PRIVATE_KEY);
         console.log("Broadcaster: ", broadcaster);
+    }
+
+    function process() public {
+        vm.startBroadcast();
+        address hookAddress = address(0x9E2E704683b87DbC4FCb29c2Dd4Ed7BF2D144888);
+        address owner = address(0x189027e3C77b3a92fd01bF7CC4E6a86E77F5034E);
+        address manager = address(0x27cFaf53A20e37e7D96502D13D3da484478882Fd);
+        address priceOracle = address(0xbDAB27D1903da4e18B0D1BE873E18924514E52eC);
+        // deployCodeTo("OracleSwap.sol", abi.encode(owner, manager, priceOracle), hookAddress);
+        OracleSwap oracleSwap = OracleSwap(hookAddress);
+
+        PoolKey memory key = PoolKey({
+            currency0: Currency.wrap(0x8c8Ae4C21E244abD4968ce43699c43011014B370),
+            currency1: Currency.wrap(0x8eE6eFf2D8ED88Dc714547C54A55655a374a2e16),
+            fee: 3000,
+            tickSpacing: 120,
+            hooks: IHooks(address(0x9E2E704683b87DbC4FCb29c2Dd4Ed7BF2D144888))
+        });
+
+        // IERC20Minimal(Currency.unwrap(key.currency0)).approve(address(oracleSwap), type(uint256).max);
+        // IERC20Minimal(Currency.unwrap(key.currency1)).approve(address(oracleSwap), type(uint256).max);
+
+        oracleSwap.process({
+            key: key,
+            amount: (122e18 + 23e18) * 7.565e8 / 1e8,
+            isZero: false
+        });
+
+        vm.stopBroadcast();
     }
 
     function swap() public {

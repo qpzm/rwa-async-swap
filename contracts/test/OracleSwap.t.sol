@@ -268,7 +268,7 @@ contract OracleSwapTest is Test, Deployers {
 
         uint256 price = 1e8;
         uint256 amount = 1000e18;
-        IERC20Minimal(Currency.unwrap(key.currency0)).approve(address(hook), amount);
+        IERC20Minimal(Currency.unwrap(key.currency0)).approve(address(hook), type(uint256).max);
         priceOracle.updatePrice(tokenName, price);
 
         // add currency0 to resolve oneforZero swaps

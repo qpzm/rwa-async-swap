@@ -93,17 +93,18 @@ function QueueComponent() {
             <button
               className="btn btn-primary w-full hover:bg-indigo-600 hover:shadow-lg active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-all mt-4"
               onClick={async () => {
+                console.log(queueItems.reduce((acc, item) => acc + item.amount, 0n) * 756500000n / 10n ** 8n);
                 await processAction.writeAsync({
                   args: [
                     {
-                      currency0: tokens[0].address,
-                      currency1: tokens[1].address,
+                      currency0: tokens[1].address,
+                      currency1: tokens[0].address,
                       fee: 3000,
                       tickSpacing: 120,
                       hooks: hookAddress,
                     },
                     (queueItems.reduce((acc, item) => acc + item.amount, 0n) * 756500000n) / 10n ** 8n,
-                    true,
+                    false,
                   ],
                 });
               }}
