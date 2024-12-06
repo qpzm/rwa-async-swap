@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { useAccount, useChainId, useToken } from "wagmi";
+import { useChainId, useToken, usePublicClient } from "wagmi";
 import {
-  useOracleSwapSwapQueue,
   useOracleSwapZeroForOneStartTaskId,
   useOracleSwapZeroForOneEndTaskId,
   useOracleSwapProcess,
+  oracleSwapABI,
 } from "~~/generated/generated";
 import { BLANK_TOKEN, ZERO_ADDR } from "~~/utils/constants";
 import deployedContracts from "~~/generated/deployedContracts";
@@ -29,23 +29,24 @@ function QueueComponent() {
   const zeroForOneEndTaskId = useOracleSwapZeroForOneEndTaskId({
     address: hookAddress,
   });
-  const swapQueue = useOracleSwapSwapQueue({ address: hookAddress, args: [true, 0n] });
   const processAction = useOracleSwapProcess({ address: hookAddress });
   const [queueItems, setQueueItems] = useState<{ key: bigint; receiver: string; amount: bigint }[]>([]);
+  const publicClient = usePublicClient();
 
   useEffect(() => {
     const fetchQueueItems = async () => {
       if (zeroForOneStartTaskId.data !== undefined && zeroForOneEndTaskId.data !== undefined) {
         const items = [];
         for (let i = zeroForOneStartTaskId.data; i < zeroForOneEndTaskId.data; i++) {
-          console.log("fetching", i);
-          const result = await swapQueue.refetch({
-            queryKey: ["swapQueue", { address: hookAddress, args: [true, i] }],
+          const result = await publicClient.readContract({
+            address: hookAddress,
+            abi: oracleSwapABI,
+            functionName: "swapQueue",
+            args: [true, BigInt(i)],
           });
 
-          console.log(result.data);
-          if (result.data) {
-            items.push([i, result.data[0].toString(), BigInt(result.data[1])] as [bigint, string, bigint]);
+          if (result) {
+            items.push([i, result[0].toString(), BigInt(result[1])] as [bigint, string, bigint]);
           }
         }
         setQueueItems(items.map(([key, receiver, amount]) => ({ key, receiver, amount })));
@@ -53,7 +54,7 @@ function QueueComponent() {
     };
 
     fetchQueueItems();
-  }, [zeroForOneStartTaskId.data, zeroForOneEndTaskId.data]);
+  }, [zeroForOneStartTaskId.data, zeroForOneEndTaskId.data, hookAddress, publicClient]);
 
   useEffect(() => {
     setHookAddress(
