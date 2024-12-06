@@ -25,8 +25,8 @@ function SwapComponent() {
   const swapRouterAddress =
     deployedContracts[chainId as keyof typeof deployedContracts][0].contracts.PoolSwapTest.address;
 
-  const [fromCurrency, setFromCurrency] = useState(tokens[0].data?.address ?? BLANK_TOKEN.address);
-  const [toCurrency, setToCurrency] = useState(tokens[1].data?.address ?? BLANK_TOKEN.address);
+  const [fromCurrency, setFromCurrency] = useState(tokens[0].address ?? BLANK_TOKEN.address);
+  const [toCurrency, setToCurrency] = useState(tokens[1].address ?? BLANK_TOKEN.address);
   const [fromAmount, setFromAmount] = useState("");
 
   const [swapFee, setSwapFee] = useState(3000n);
@@ -95,9 +95,9 @@ function SwapComponent() {
       console.log("Swap initiated, transaction hash:", result.hash);
 
       // You might want to show transaction pending message until the transaction is confirmed
-    } catch (error) {
+    } catch (error: unknown) {
       setIsSwapping(false);
-      setSwapError(error.message || "An error occurred during the swap.");
+      setSwapError(error instanceof Error ? error.message : "An error occurred during the swap.");
       console.error("Swap failed:", error);
     }
   };
@@ -137,7 +137,7 @@ function SwapComponent() {
             tooltipText={"The token you are sending"}
             options={tokens}
             onChange={e => {
-              setFromCurrency(e.target.value);
+              setFromCurrency(e.target.value as `0x${string}`);
               fromTokenAllowance.refetch();
             }}
           />
@@ -145,7 +145,7 @@ function SwapComponent() {
             label="To"
             tooltipText="The token you are receiving"
             options={tokens}
-            onChange={e => setToCurrency(e.target.value)}
+            onChange={e => setToCurrency(e.target.value as `0x${string}`)}
           />
         </div>
       </div>
@@ -164,7 +164,7 @@ function SwapComponent() {
             className="btn btn-primary w-full hover:bg-indigo-600 hover:shadow-lg active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-all mt-4"
             onClick={() => tokenApprove.writeAsync().then(() => fromTokenAllowance.refetch())}
           >
-            Approve {tokens.find(token => token.data?.address === fromCurrency)?.data?.symbol}
+            Approve {tokens.find(token => token.address === fromCurrency)?.symbol}
           </button>
         )}
 
@@ -185,7 +185,7 @@ function SwapComponent() {
             </div>
             <div className="flex items-center">
               <span className="text-md font-semibold text-green-600">
-                {tokens.find(token => token.data?.address === fromCurrency)?.data?.symbol}
+                {tokens.find(token => token.address === fromCurrency)?.symbol}
               </span>
             </div>
           </div>
@@ -210,11 +210,10 @@ function SwapComponent() {
                 <label>Swap successful! 🎉</label>
                 <pre>Transaction Hash: {txHash}</pre>
                 <span
-                  className="font-mono 
-                  text-sm 
-                  text-blue-600 
-                  hover:underline 
-                  cursor-pointer 
+                  className="font-mono
+                  text-blue-600
+                  hover:underline
+                  cursor-pointer
                   transition-colors
                 "
                 >

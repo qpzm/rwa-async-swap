@@ -32,7 +32,7 @@ export const RainbowKitCustomConnectButton = () => {
   const configuredNetwork = getTargetNetwork();
   const { disconnect } = useDisconnect();
   const { switchNetwork } = useSwitchNetwork();
-  const [addressCopied, setAddressCopied] = useState(false);
+  const [_addressCopied, setAddressCopied] = useState(false);
   const [address, setAddress] = useState<string>("0x0");
 
   return (
@@ -52,12 +52,12 @@ export const RainbowKitCustomConnectButton = () => {
 
         const { data: balanceToken0, refetch: refetchToken0Balance } = useErc20BalanceOf({
           address: TOKEN_ADDRESSES[0][chain?.id as keyof (typeof TOKEN_ADDRESSES)[0]],
-          args: [address],
+          args: [address as `0x${string}`],
           watch: true,
         });
         const { data: balanceToken1, refetch: refetchToken1Balance } = useErc20BalanceOf({
           address: TOKEN_ADDRESSES[1][chain?.id as keyof (typeof TOKEN_ADDRESSES)[1]],
-          args: [address],
+          args: [address as `0x${string}`],
           watch: true,
         });
 
@@ -78,7 +78,7 @@ export const RainbowKitCustomConnectButton = () => {
                   from-[#ff0080] to-[#7928ca] text-white opacity-50
                   hover:opacity-100
                   hover:transition-opacity duration-100 ease-in-out
-                  hover:scale-110 transform  
+                  hover:scale-110 transform
                   "
                     onClick={openConnectModal}
                     type="button"
