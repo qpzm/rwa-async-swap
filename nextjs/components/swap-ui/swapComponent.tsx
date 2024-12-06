@@ -5,13 +5,7 @@ import { PoolKeyId } from "../base/pool-key";
 import { TokenDropdown } from "../base/token-dropdown";
 import { parseEther, encodeAbiParameters } from "viem";
 import { useAccount, useChainId, useToken, useWaitForTransaction } from "wagmi";
-import {
-  iOracleSwapABI,
-  poolSwapTestAddress,
-  useErc20Allowance,
-  useErc20Approve,
-  usePoolSwapTestSwap,
-} from "~~/generated/generated";
+import { useErc20Allowance, useErc20Approve, usePoolSwapTestSwap } from "~~/generated/generated";
 import { TOKEN_ADDRESSES } from "~~/utils/config";
 import { BLANK_TOKEN, MAX_SQRT_PRICE_LIMIT, MAX_UINT, MIN_SQRT_PRICE_LIMIT, ZERO_ADDR } from "~~/utils/constants";
 import deployedContracts from "~~/generated/deployedContracts";
@@ -20,15 +14,23 @@ function SwapComponent() {
   const { address } = useAccount();
   const chainId = useChainId();
 
-  const tokens = TOKEN_ADDRESSES.map(address => useToken({ address: address[chainId as keyof typeof address] }));
-  const swapRouterAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; // Hard coded
+  const tokens = TOKEN_ADDRESSES.map(address => useToken({ address: address[chainId as keyof typeof address] })).map(
+    (token, index) => ({
+      ...(token.data ?? BLANK_TOKEN),
+      index,
+      name: index === 0 ? "USDT" : "T-Bill",
+    }),
+  );
+
+  const swapRouterAddress =
+    deployedContracts[chainId as keyof typeof deployedContracts][0].contracts.PoolSwapTest.address;
 
   const [fromCurrency, setFromCurrency] = useState(tokens[0].data?.address ?? BLANK_TOKEN.address);
   const [toCurrency, setToCurrency] = useState(tokens[1].data?.address ?? BLANK_TOKEN.address);
   const [fromAmount, setFromAmount] = useState("");
 
   const [swapFee, setSwapFee] = useState(3000n);
-  const [tickSpacing, setTickSpacing] = useState(60n);
+  const [tickSpacing, setTickSpacing] = useState(120n);
   const [hookAddress, setHookAddress] = useState<`0x${string}`>(
     deployedContracts[chainId as keyof typeof deployedContracts][0]?.contracts.OracleSwap.address ?? ZERO_ADDR,
   );
@@ -133,17 +135,16 @@ function SwapComponent() {
           <TokenDropdown
             label="From"
             tooltipText={"The token you are sending"}
-            options={tokens.map(token => token.data ?? BLANK_TOKEN)}
+            options={tokens}
             onChange={e => {
               setFromCurrency(e.target.value);
-              console.log("🚀 ~ file: swapComponent.tsx:107 ~ SwapComponent ~ e:", e.target);
               fromTokenAllowance.refetch();
             }}
           />
           <TokenDropdown
             label="To"
             tooltipText="The token you are receiving"
-            options={tokens.map(token => token.data ?? BLANK_TOKEN)}
+            options={tokens}
             onChange={e => setToCurrency(e.target.value)}
           />
         </div>
@@ -152,7 +153,7 @@ function SwapComponent() {
       <div className="w-full my-4">
         <NumericInput
           type="number"
-          placeholder="Deposit Amount"
+          placeholder="From Amount"
           tooltipText="Transaction amount for swapping tokens."
           value={fromAmount}
           onChange={e => setFromAmount(e.target.value)}
