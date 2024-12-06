@@ -78,7 +78,7 @@ function SwapComponent() {
           },
           {
             zeroForOne: fromCurrency.toLowerCase() < toCurrency.toLowerCase(),
-            amountSpecified: parseEther(fromAmount), // TODO: assumes tokens are always 18 decimals
+            amountSpecified: parseEther(fromAmount) * -1n, // TODO: assumes tokens are always 18 decimals
             sqrtPriceLimitX96:
               fromCurrency.toLowerCase() < toCurrency.toLowerCase() ? MIN_SQRT_PRICE_LIMIT : MAX_SQRT_PRICE_LIMIT, // unlimited impact
           },

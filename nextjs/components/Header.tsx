@@ -25,6 +25,13 @@ export const Header = () => {
       >
         Swap
       </NavbarItem>
+      <NavbarItem
+        className="cursor-pointer"
+        isActive={isActiveLink(router, "/swap-ui?page=queue")}
+        onClick={(event: any) => redirectLink(event, "/swap-ui?page=queue")}
+      >
+        Queue
+      </NavbarItem>
     </>
   );
 

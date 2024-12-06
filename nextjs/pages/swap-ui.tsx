@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useRouter } from "next/router";
 import type { NextPage } from "next";
 import SwapUI from "~~/components/swap-ui/swapUI";
+import QueueUI from "~~/components/swap-ui/queueUI";
 
 const SwapUIPage: NextPage = () => {
   const router = useRouter();
@@ -12,6 +13,8 @@ const SwapUIPage: NextPage = () => {
     return <div>Loading...</div>;
   } else if (router.isReady && isSwap) {
     return <SwapUI />;
+  } else if (router.isReady && !isSwap) {
+    return <QueueUI />;
   }
 
   return <></>;
