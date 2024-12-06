@@ -52,6 +52,10 @@ contract OracleSwap is Ownable, BaseHook, IOracleSwap {
             });
     }
 
+    function setPriceOracle(IPriceOracle _priceOracle) external onlyOwner {
+        priceOracle = _priceOracle;
+    }
+
     // Add a swap the given token pair
     function beforeSwap(
         address sender,

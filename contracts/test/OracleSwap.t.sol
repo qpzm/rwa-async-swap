@@ -182,6 +182,20 @@ contract OracleSwapTest is Test, Deployers {
         assertEq(balanceOfTokenBBefore - balanceOfTokenBAfter, 100e18, "Wrong tokenB balance");
     }
 
+    function test_process_two_zeroForOneSwap_enqueue_two_tasks() public {
+        uint256 price = 1e8;
+        uint256 amount = 1000e18;
+        _queue({ receiver: alice, amount: amount, zeroForOne: true });
+        _queue({ receiver: bob, amount: amount * 2, zeroForOne: true });
+
+        (address receiver0, uint256 amount0) = hook.swapQueue(true, 0);
+        (address receiver1, uint256 amount1) = hook.swapQueue(true, 1);
+        assertEq(receiver0, alice);
+        assertEq(receiver1, bob);
+        assertEq(amount0, amount);
+        assertEq(amount1, amount * 2);
+    }
+
     function test_RevertWhen_process_with_stale_price() public {
         priceOracle.updatePrice(tokenName, 1e8);
         vm.warp(block.timestamp + 1 hours + 1 seconds);
