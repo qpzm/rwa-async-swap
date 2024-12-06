@@ -63,11 +63,6 @@ function SwapComponent() {
     setSwapError("");
     setSwapSuccess(false);
 
-    console.log(swapRouterAddress);
-    console.log(fromCurrency);
-    console.log(toCurrency);
-    console.log(hookAddress);
-
     try {
       // Execute the swap
       const result = await swap.writeAsync({

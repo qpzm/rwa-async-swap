@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@nextui-org/react";
 import { useChainId } from "wagmi";
 import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
+import Link from "next/link";
 
 const isActiveLink = (router: any, href: string) => router.pathname === href;
 /**
@@ -17,20 +18,6 @@ export const Header = () => {
   };
   const navLinks = (
     <>
-      <NavbarItem
-        className="cursor-pointer"
-        isActive={isActiveLink(router, "/swap-ui?page=initialize")}
-        onClick={(event: any) => redirectLink(event, "/swap-ui?page=initialize")}
-      >
-        Initialize
-      </NavbarItem>
-      <NavbarItem
-        className="cursor-pointer"
-        isActive={isActiveLink(router, "/swap-ui?page=liquidity")}
-        onClick={(event: any) => redirectLink(event, "/swap-ui?page=liquidity")}
-      >
-        Liquidity
-      </NavbarItem>
       <NavbarItem
         className="cursor-pointer"
         isActive={isActiveLink(router, "/swap-ui?page=swap")}
@@ -66,7 +53,9 @@ export const Header = () => {
       }}
     >
       <NavbarBrand>
-        <p className="font-bold text-inherit">rwa-async-swap</p>
+        <Link href="/">
+          <p className="font-bold text-inherit">rwa-async-swap</p>
+        </Link>
       </NavbarBrand>
       <NavbarContent className="hidden sm:flex gap-4" justify="center">
         {navLinks}
