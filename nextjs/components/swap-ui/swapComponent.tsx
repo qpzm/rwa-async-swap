@@ -3,10 +3,10 @@ import Link from "next/link";
 import { NumericInput } from "../base/numeric-input";
 import { PoolKeyId } from "../base/pool-key";
 import { TokenDropdown } from "../base/token-dropdown";
-import { parseEther } from "viem";
+import { parseEther, encodeAbiParameters } from "viem";
 import { useAccount, useChainId, useToken, useWaitForTransaction } from "wagmi";
 import {
-  counterAddress,
+  iOracleSwapABI,
   poolSwapTestAddress,
   useErc20Allowance,
   useErc20Approve,
@@ -14,25 +14,23 @@ import {
 } from "~~/generated/generated";
 import { TOKEN_ADDRESSES } from "~~/utils/config";
 import { BLANK_TOKEN, MAX_SQRT_PRICE_LIMIT, MAX_UINT, MIN_SQRT_PRICE_LIMIT, ZERO_ADDR } from "~~/utils/constants";
+import deployedContracts from "~~/generated/deployedContracts";
 
 function SwapComponent() {
   const { address } = useAccount();
   const chainId = useChainId();
 
   const tokens = TOKEN_ADDRESSES.map(address => useToken({ address: address[chainId as keyof typeof address] }));
-  console.log("🚀 ~ file: swapComponent.tsx:22 ~ SwapComponent ~ tokens:", tokens);
+  const swapRouterAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; // Hard coded
 
-  const swapRouterAddress = poolSwapTestAddress[chainId as keyof typeof poolSwapTestAddress];
-
-  const [fromCurrency, setFromCurrency] = useState(BLANK_TOKEN.address);
-  const [toCurrency, setToCurrency] = useState(BLANK_TOKEN.address);
+  const [fromCurrency, setFromCurrency] = useState(tokens[0].data?.address ?? BLANK_TOKEN.address);
+  const [toCurrency, setToCurrency] = useState(tokens[1].data?.address ?? BLANK_TOKEN.address);
   const [fromAmount, setFromAmount] = useState("");
 
   const [swapFee, setSwapFee] = useState(3000n);
   const [tickSpacing, setTickSpacing] = useState(60n);
-  const [hookData, setHookData] = useState<string>(""); // New state for custom hook data
   const [hookAddress, setHookAddress] = useState<`0x${string}`>(
-    counterAddress[chainId as keyof typeof counterAddress] ?? ZERO_ADDR,
+    deployedContracts[chainId as keyof typeof deployedContracts][0]?.contracts.OracleSwap.address ?? ZERO_ADDR,
   );
 
   //swap status
@@ -65,6 +63,11 @@ function SwapComponent() {
     setSwapError("");
     setSwapSuccess(false);
 
+    console.log(swapRouterAddress);
+    console.log(fromCurrency);
+    console.log(toCurrency);
+    console.log(hookAddress);
+
     try {
       // Execute the swap
       const result = await swap.writeAsync({
@@ -83,11 +86,10 @@ function SwapComponent() {
               fromCurrency.toLowerCase() < toCurrency.toLowerCase() ? MIN_SQRT_PRICE_LIMIT : MAX_SQRT_PRICE_LIMIT, // unlimited impact
           },
           {
-            withdrawTokens: true,
-            settleUsingTransfer: true,
-            currencyAlreadySent: false
+            settleUsingBurn: false,
+            takeClaims: false,
           },
-          hookData as `0x${string}`,
+          encodeAbiParameters([{ type: "address" }], [address ?? (ZERO_ADDR as `0x${string}`)]),
         ],
       });
 
@@ -104,7 +106,9 @@ function SwapComponent() {
   };
 
   useEffect(() => {
-    setHookAddress(counterAddress[chainId as keyof typeof counterAddress] ?? ZERO_ADDR);
+    setHookAddress(
+      deployedContracts[chainId as keyof typeof deployedContracts][0].contracts.OracleSwap.address ?? ZERO_ADDR,
+    );
   }, [chainId]);
 
   // Success message once the transaction has been confirmed on the blockchain
@@ -153,18 +157,10 @@ function SwapComponent() {
       <div className="w-full my-4">
         <NumericInput
           type="number"
-          placeholder="Swap Amount"
+          placeholder="Deposit Amount"
           tooltipText="Transaction amount for swapping tokens."
           value={fromAmount}
           onChange={e => setFromAmount(e.target.value)}
-        />
-
-        <NumericInput
-          type="string"
-          placeholder="Hook Data"
-          tooltipText="Optional custom hook data in hexadecimal format."
-          value={hookData}
-          onChange={e => setHookData(e.target.value)}
         />
 
         {fromCurrency !== BLANK_TOKEN.address && fromTokenAllowance.data === 0n && (

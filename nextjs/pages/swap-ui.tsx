@@ -7,7 +7,6 @@ import SwapUI from "~~/components/swap-ui/swapUI";
 
 const SwapUIPage: NextPage = () => {
   const router = useRouter();
-  console.log(router, "router");
   const { query } = router;
   const isSwap = useMemo(() => query.page === "swap", [query.page]);
   const isLiquidity = useMemo(() => query.page === "liquidity", [query.page]);

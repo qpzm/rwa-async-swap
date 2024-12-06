@@ -1,4 +1,4 @@
-import { counterABI, hookMinerABI, poolManagerABI, poolModifyLiquidityTestABI, poolSwapTestABI } from "./generated";
+import { poolManagerABI, poolModifyLiquidityTestABI, poolSwapTestABI, oracleSwapABI } from "./generated";
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
 export const deployedContracts: GenericContractsDeclaration = {
@@ -11,20 +11,16 @@ export const deployedContracts: GenericContractsDeclaration = {
           address: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
           abi: poolManagerABI,
         },
-        Counter: {
-          address: "0x3Ce72a2059524eC26219E6a7f9dBe387370ac1D8",
-          abi: counterABI,
-        },
-        HookMiner: {
-          address: "0x32cd5ecdA7f2B8633C00A0434DE28Db111E60636",
-          abi: hookMinerABI,
+        OracleSwap: {
+          address: "0x22a8e2faa3ce538630b8867c587a044a9a8cc888",
+          abi: oracleSwapABI,
         },
         PoolModifyLiquityTest: {
           address: "0x3079c0319f8734239eb06765666468f7b76eb505",
           abi: poolModifyLiquidityTestABI,
         },
         PoolSwapTest: {
-          address: "0xaf7ccf0ff7ef054a1db43330f5431958ab4a9441",
+          address: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
           abi: poolSwapTestABI,
         },
       },

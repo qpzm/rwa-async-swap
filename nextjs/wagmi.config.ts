@@ -9,24 +9,10 @@ export default defineConfig({
       forge: {
         build: false, // disable build because we are using a custom solc
       },
-      project: "../", // path to the project root (directory holding foundry.toml)
+      project: "..", // path to the project root (directory holding foundry.toml)
       deployments: {
         // --------------------------------------------------
         // 👉 Update the address with your deployed hook 👈
-        // --------------------------------------------------
-        Counter: {
-          31337: "0x330ae74DAA74d90FAc17045EbBa5bA7d233f69D9",
-          5: "0x0000000000000000000000000000000000000000", // goerli
-          420: "0x0000000000000000000000000000000000000000", // optimism goerli
-          1442: "0x0000000000000000000000000000000000000000", // polygon zkevm testnet
-          80001: "0x0000000000000000000000000000000000000000", // mumbai
-          84531: "0x0000000000000000000000000000000000000000", // base goerli
-          421613: "0x0000000000000000000000000000000000000000", // arbitrum goerli
-          421614: "0x0000000000000000000000000000000000000000", // arbitrum sepolia
-          534351: "0x0000000000000000000000000000000000000000", // scroll  sepolia
-          11155111: "0x0000000000000000000000000000000000000000", // sepolia
-        },
-
         // --------------------------------------------------
         // Do not change
         // --------------------------------------------------
@@ -46,7 +32,7 @@ export default defineConfig({
           31337: "0xFEB29bB43e36c0F8488F78bba2E8E94F0D829Fa1",
         },
         PoolSwapTest: {
-          31337: "0xaf7ccf0ff7ef054a1db43330f5431958ab4a9441",
+          31337: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
           5: "0xF8AADC65Bf1Ec1645ef931317fD48ffa734a185c",
           420: "0x24C731645ee1e35C3219153d370EBd79784D1E91",
           1442: "0x24C731645ee1e35C3219153d370EBd79784D1E91",
