@@ -102,7 +102,7 @@ function QueueComponent() {
                       tickSpacing: 120,
                       hooks: hookAddress,
                     },
-                    queueItems.reduce((acc, item) => acc + item.amount, 0n) * 10n ** 8n * 756500000n,
+                    (queueItems.reduce((acc, item) => acc + item.amount, 0n) * 756500000n) / 10n ** 8n,
                     true,
                   ],
                 });
