@@ -15,10 +15,6 @@ export const deployedContracts: GenericContractsDeclaration = {
           address: "0x22a8e2faa3ce538630b8867c587a044a9a8cc888",
           abi: oracleSwapABI,
         },
-        PoolModifyLiquityTest: {
-          address: "0x3079c0319f8734239eb06765666468f7b76eb505",
-          abi: poolModifyLiquidityTestABI,
-        },
         PoolSwapTest: {
           address: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512",
           abi: poolSwapTestABI,
