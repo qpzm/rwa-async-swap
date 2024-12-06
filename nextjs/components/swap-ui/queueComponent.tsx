@@ -5,6 +5,8 @@ import {
   oracleSwapABI,
   useOracleSwapOneForZeroEndTaskId,
   useOracleSwapOneForZeroStartTaskId,
+  useOracleSwapZeroForOneStartTaskId,
+  useOracleSwapZeroForOneEndTaskId,
 } from "~~/generated/generated";
 import { BLANK_TOKEN, ZERO_ADDR } from "~~/utils/constants";
 import deployedContracts from "~~/generated/deployedContracts";
@@ -17,16 +19,16 @@ function QueueComponent() {
     (token, index) => ({
       ...(token.data ?? BLANK_TOKEN),
       index,
-      name: index === 0 ? "USDT" : "T-Bill",
     }),
   );
+
   const [hookAddress, setHookAddress] = useState<`0x${string}`>(
     deployedContracts[chainId as keyof typeof deployedContracts][0]?.contracts.OracleSwap.address ?? ZERO_ADDR,
   );
-  const startTaskID = useOracleSwapOneForZeroStartTaskId({
+  const startTaskID = useOracleSwapZeroForOneStartTaskId({
     address: hookAddress,
   });
-  const endTaskID = useOracleSwapOneForZeroEndTaskId({
+  const endTaskID = useOracleSwapZeroForOneEndTaskId({
     address: hookAddress,
   });
 
@@ -43,7 +45,7 @@ function QueueComponent() {
             address: hookAddress,
             abi: oracleSwapABI,
             functionName: "swapQueue",
-            args: [false, BigInt(i)],
+            args: [true, BigInt(i)],
           });
 
           if (result) {
@@ -86,14 +88,11 @@ function QueueComponent() {
           </tbody>
         </table>
         {queueItems.length === 0 && <p className="text-center text-gray-500">Queue is empty</p>}
-
         {queueItems.length > 0 && (
           <div className="flex justify-center">
             <button
               className="btn btn-primary w-full hover:bg-indigo-600 hover:shadow-lg active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-all mt-4"
               onClick={async () => {
-                console.log(queueItems.reduce((acc, item) => acc + item.amount, 0n));
-                console.log((queueItems.reduce((acc, item) => acc + item.amount, 0n) * 10n ** 8n) / 756500000n);
                 await processAction.writeAsync({
                   args: [
                     {
@@ -103,8 +102,8 @@ function QueueComponent() {
                       tickSpacing: 120,
                       hooks: hookAddress,
                     },
-                    (queueItems.reduce((acc, item) => acc + item.amount, 0n) * 10n ** 8n) / 756500000n,
-                    false,
+                    queueItems.reduce((acc, item) => acc + item.amount, 0n) * 10n ** 8n * 756500000n,
+                    true,
                   ],
                 });
               }}

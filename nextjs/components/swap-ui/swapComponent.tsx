@@ -18,7 +18,6 @@ function SwapComponent() {
     (token, index) => ({
       ...(token.data ?? BLANK_TOKEN),
       index,
-      name: index === 0 ? "USDT" : "T-Bill",
     }),
   );
 
