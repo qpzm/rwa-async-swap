@@ -5326,6 +5326,7 @@ export const poolDonateTestABI = [
  */
 export const poolDonateTestAddress = {
   31337: "0x4FA6C7a3A9b84F2A8340D4d33190F84e307B085c",
+  11155420: "0xd8A5f1EF6C08e1c4234EBC57cAeE890120032912",
 } as const;
 
 /**
@@ -5891,6 +5892,7 @@ export const poolManagerABI = [
  */
 export const poolManagerAddress = {
   31337: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  11155420: "0x27cFaf53A20e37e7D96502D13D3da484478882Fd",
 } as const;
 
 /**
@@ -6025,6 +6027,7 @@ export const poolModifyLiquidityTestABI = [
  */
 export const poolModifyLiquidityTestAddress = {
   31337: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+  11155420: "0xd8f0fb5C53f24eC1Ed368e362d7d8CE0aC34b8d2",
 } as const;
 
 /**
@@ -6580,6 +6583,7 @@ export const poolSwapTestABI = [
  */
 export const poolSwapTestAddress = {
   31337: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+  11155420: "0x405720F18DE27fcD94809e7C2C27A92340660081",
 } as const;
 
 /**
@@ -7444,6 +7448,7 @@ export const token0ABI = [
  */
 export const token0Address = {
   31337: "0x0165878A594ca255338adfa4d48449f69242Eb8F",
+  11155420: "0x8eE6eFf2D8ED88Dc714547C54A55655a374a2e16",
 } as const;
 
 /**
@@ -7569,6 +7574,7 @@ export const token1ABI = [
  */
 export const token1Address = {
   31337: "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
+  11155420: "0x8c8Ae4C21E244abD4968ce43699c43011014B370",
 } as const;
 
 /**

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useChainId, useToken, usePublicClient } from "wagmi";
 import {
-  useOracleSwapZeroForOneStartTaskId,
-  useOracleSwapZeroForOneEndTaskId,
   useOracleSwapProcess,
   oracleSwapABI,
+  useOracleSwapOneForZeroEndTaskId,
+  useOracleSwapOneForZeroStartTaskId,
 } from "~~/generated/generated";
 import { BLANK_TOKEN, ZERO_ADDR } from "~~/utils/constants";
 import deployedContracts from "~~/generated/deployedContracts";
@@ -23,26 +23,27 @@ function QueueComponent() {
   const [hookAddress, setHookAddress] = useState<`0x${string}`>(
     deployedContracts[chainId as keyof typeof deployedContracts][0]?.contracts.OracleSwap.address ?? ZERO_ADDR,
   );
-  const zeroForOneStartTaskId = useOracleSwapZeroForOneStartTaskId({
+  const startTaskID = useOracleSwapOneForZeroStartTaskId({
     address: hookAddress,
   });
-  const zeroForOneEndTaskId = useOracleSwapZeroForOneEndTaskId({
+  const endTaskID = useOracleSwapOneForZeroEndTaskId({
     address: hookAddress,
   });
+
   const processAction = useOracleSwapProcess({ address: hookAddress });
   const [queueItems, setQueueItems] = useState<{ key: bigint; receiver: string; amount: bigint }[]>([]);
   const publicClient = usePublicClient();
 
   useEffect(() => {
     const fetchQueueItems = async () => {
-      if (zeroForOneStartTaskId.data !== undefined && zeroForOneEndTaskId.data !== undefined) {
+      if (startTaskID.data !== undefined && endTaskID.data !== undefined) {
         const items = [];
-        for (let i = zeroForOneStartTaskId.data; i < zeroForOneEndTaskId.data; i++) {
+        for (let i = startTaskID.data; i < endTaskID.data; i++) {
           const result = await publicClient.readContract({
             address: hookAddress,
             abi: oracleSwapABI,
             functionName: "swapQueue",
-            args: [true, BigInt(i)],
+            args: [false, BigInt(i)],
           });
 
           if (result) {
@@ -54,7 +55,7 @@ function QueueComponent() {
     };
 
     fetchQueueItems();
-  }, [zeroForOneStartTaskId.data, zeroForOneEndTaskId.data, hookAddress, publicClient]);
+  }, [startTaskID.data, endTaskID.data, hookAddress, publicClient]);
 
   useEffect(() => {
     setHookAddress(
@@ -101,7 +102,7 @@ function QueueComponent() {
                       hooks: hookAddress,
                     },
                     queueItems.reduce((acc, item) => acc + item.amount, 0n),
-                    true,
+                    false,
                   ],
                 })
               }
