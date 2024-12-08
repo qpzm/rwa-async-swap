@@ -25,6 +25,13 @@ We aspire to develop a user-friendly gateway connecting various real world asset
 | PoolClaimsTest | [0xd8c28Befa2A63ADB55B2BCc25d4C64e93b9Daf24](https://sepolia-optimism.etherscan.io/address/0xd8c28Befa2A63ADB55B2BCc25d4C64e93b9Daf24) |
 
 ## Test
+### Local
+```sh
+cd contracts
+forge test
+```
+
+### Demo
 ```shell
 anvil --host 0.0.0.0
 # Use one of the private keys in anvil
